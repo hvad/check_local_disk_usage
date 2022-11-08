@@ -2,4 +2,4 @@
 
 Usage : 
 
-    $ ./check_local_disk_usage --disk /
+    $ ./check_local_disk_usage --disk / --warning 80 --critical 90
