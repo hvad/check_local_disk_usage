@@ -5,34 +5,50 @@ use std::process;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
+    /// Disk path to check (e.g., "/")
     #[arg(short, long)]
     disk: String,
-    #[arg(short, long)]
+
+    /// Critical threshold for disk usage percentage
+    #[arg(short, long, default_value_t = 75)]
     critical: u8,
-    #[arg(short, long)]
+
+    /// Warning threshold for disk usage percentage
+    #[arg(short, long, default_value_t = 50)]
     warning: u8,
 }
 
 fn main() {
     let args = Args::parse();
 
-    let disk_usage = disk::disk_usage(&args.disk).unwrap();
-    let disk_usage_percent = disk_usage.percent() as u8;
+    // Retrieve disk usage information
+    match disk::disk_usage(&args.disk) {
+        Ok(usage) => {
+            let percent = usage.percent() as u8;
 
-    if disk_usage_percent > args.critical {
-        println!(
-            "CRITICAL - Disk {} usage {}%",
-            &args.disk, disk_usage_percent
-        );
-        process::exit(2);
-    } else if disk_usage_percent > args.warning {
-        println!(
-            "WARNING - Disk {} usage {}%",
-            &args.disk, disk_usage_percent
-        );
-        process::exit(1);
-    } else {
-        println!("OK - Disk {} usage {}%", &args.disk, disk_usage_percent);
-        process::exit(0);
+            // Determine status and message based on thresholds
+            let (status, message) = match percent {
+                _ if percent > args.critical => (
+                    2,
+                    format!("CRITICAL - Disk '{}' usage is at {}%", args.disk, percent),
+                ),
+                _ if percent > args.warning => (
+                    1,
+                    format!("WARNING - Disk '{}' usage is at {}%", args.disk, percent),
+                ),
+                _ => (
+                    0,
+                    format!("OK - Disk '{}' usage is at {}%", args.disk, percent),
+                ),
+            };
+
+            println!("{}", message);
+            process::exit(status);
+        }
+        Err(e) => {
+            // Handle errors when retrieving disk usage
+            eprintln!("ERROR - Failed to retrieve disk usage for '{}': {}", args.disk, e);
+            process::exit(3); // Exit with an unknown error code
+        }
     }
 }
